@@ -1,0 +1,445 @@
+{
+    "id": "invoke-xr-upgrade",
+    "name": "invoke-xr-upgrade",
+    "start": "invoke-pre-upgrade-cfs-check",
+    "states": [
+        {
+            "name": "invoke-pre-upgrade-cfs-check",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "invoke-pre-upgrade-cfs-check",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "invoke-cfs-check",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .cfsChecks }"
+                    }
+                }
+            ],
+            "transition": "checkCfsCheckStatus"
+        },
+        {
+            "name": "checkCfsCheckStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "CFScheckSuccess",
+                    "condition": "${ .cfsChecks.status == \"success\" }",
+                    "transition": "checkInstallRequestStatus"
+                },
+                {
+                    "name": "CFScheckFailure",
+                    "condition": "${ .cfsChecks.status != \"success\" }",
+                    "transition": "handlePrechecksFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handlePrechecksFailure"
+            }
+        },
+        {
+            "name": "checkInstallRequestStatus",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "checkInstallRequestStatus",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "check-install-request-status",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .installRequestCheck }"
+                    }
+                }
+            ],
+            "transition": "checkInstallStatus"
+        },
+        {
+            "name": "checkInstallStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "installStatusCheckSuccess",
+                    "condition": "${ .installRequestCheck.status == \"success\" }",
+                    "transition": "invokeNcShowInterfacesSummary"
+                },
+                {
+                    "name": "installStatusCheckFailure",
+                    "condition": "${ .installRequestCheck.status != \"success\" }",
+                    "transition": "handlePrechecksFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handlePrechecksFailure"
+            }
+        },
+        {
+            "name": "invokeNcShowInterfacesSummary",
+            "type": "operation",
+            "actions": [
+            {
+                "name": "invoke-nc-show-interfaces-summary",
+                "subFlowRef": {
+                "invoke": "sync",
+                "version": "1.0.0",
+                "workflowId": "nc-show-interfaces-summary",
+                "onParentComplete": "continue"
+                },
+                "actionDataFilter": {
+                "toStateData": "${ .prechecksNcShowInterfacesSummaryResult }"
+                }
+            }
+            ],
+            "transition": "checkNcShowInterfacesSummaryStatus"
+        },
+        {
+            "name": "checkNcShowInterfacesSummaryStatus",
+            "type": "switch",
+            "dataConditions": [
+            {
+                "name": "ncShowInterfacesSummarySuccess",
+                "condition": "${ .prechecksNcShowInterfacesSummaryResult.status == \"success\" }",
+                "transition": "invokeImageCopy"
+            },
+            {
+                "name": "ncShowInterfacesSummaryFailure",
+                "condition": "${ .prechecksNcShowInterfacesSummaryResult.status != \"success\" }",
+                "transition": "handlePrechecksFailure"
+            }
+            ],
+            "defaultCondition": {
+            "transition": "handlePrechecksFailure"
+            }
+        },
+        {
+            "name": "invokeImageCopy",
+            "type": "operation",
+            "actions": [
+            {
+                "name": "invoke-image-copy",
+                "subFlowRef": {
+                "invoke": "sync",
+                "version": "1.0.0",
+                "workflowId": "invoke-image-copy",
+                "onParentComplete": "continue"
+                },
+                "actionDataFilter": {
+                "toStateData": "${ .imageCopyResult }"
+                }
+            }
+            ],
+            "transition": "checkImageCopyStatus"
+        },
+        {
+            "name": "checkImageCopyStatus",
+            "type": "switch",
+            "dataConditions": [
+            {
+                "name": "imageCopySuccess",
+                "condition": "${ .imageCopyResult.status == \"success\" }",
+                "transition": "invokeInstallReplace"
+            },
+            {
+                "name": "imageCopyFailure",
+                "condition": "${ .imageCopyResult.status != \"success\" }",
+                "transition": "handleImageCopyFailure"
+            }
+            ],
+            "defaultCondition": {
+            "transition": "handleImageCopyFailure"
+            }
+        },
+        {
+            "name": "invokeInstallReplace",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "invoke-install-replace",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "invoke-install-replace",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .installReplaceResult }"
+                    }
+                }
+            ],
+            "transition": "checkInstallReplaceStatus"
+        },
+        {
+            "name": "checkInstallReplaceStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "installReplaceSuccess",
+                    "condition": "${ .installReplaceResult.status == \"success\" }",
+                    "transition": "monitorInstallProgressUntilCompletion"
+                },
+                {
+                    "name": "installReplaceFailure",
+                    "condition": "${ .installReplaceResult.status != \"success\" }",
+                    "transition": "handleInstallReplaceFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handleInstallReplaceFailure"
+            }
+        },
+        {
+            "name": "monitorInstallProgressUntilCompletion",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "monitor-install-progress-until-completion",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "monitor-install-progress-until-completion",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .installProgressResult }",
+                        "fromStateData": "${ {\"deviceName\": .deviceName, \"resourceId\": .resourceId}  }"
+                    }
+                }
+            ],
+            "transition": "checkInstallProgressStatus"
+        },
+        {
+            "name": "checkInstallProgressStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "installProgressSuccess",
+                    "condition": "${ .installProgressResult.status == \"success\" }",
+                    "transition": "invoke-post-upgrade-cfs-check"
+                },
+                {
+                    "name": "installProgressFailure",
+                    "condition": "${ .installProgressResult.status != \"success\" }",
+                    "transition": "handleInstallReplaceFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handleInstallReplaceFailure"
+            }
+        },
+        {
+            "name": "invoke-post-upgrade-cfs-check",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "invoke-post-upgrade-cfs-check",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "invoke-cfs-check",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .postUpgradeCfsChecks }"
+                    }
+                }
+            ],
+            "transition": "postUpgradeCheckCfsCheckStatus"
+        },
+        {
+            "name": "postUpgradeCheckCfsCheckStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "CFScheckSuccess",
+                    "condition": "${ .postUpgradeCfsChecks.status == \"success\" }",
+                    "transition": "postUpgradeNcShowInterfacesSummary"
+                },
+                {
+                    "name": "CFScheckFailure",
+                    "condition": "${ .postUpgradeCfsChecks.status != \"success\" }",
+                    "transition": "handlePostChecksFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handlePostChecksFailure"
+            }
+        },
+        {
+            "name": "postUpgradeNcShowInterfacesSummary",
+            "type": "operation",
+            "actions": [
+            {
+                "name": "invoke-nc-show-interfaces-summary",
+                "subFlowRef": {
+                "invoke": "sync",
+                "version": "1.0.0",
+                "workflowId": "nc-show-interfaces-summary",
+                "onParentComplete": "continue"
+                },
+                "actionDataFilter": {
+                "toStateData": "${ .postchecksNcShowInterfacesSummaryResult }"
+                }
+            }
+            ],
+            "transition": "postUpgradeCheckNcShowInterfacesSummaryStatus"
+        },
+        {
+            "name": "postUpgradeCheckNcShowInterfacesSummaryStatus",
+            "type": "switch",
+            "dataConditions": [
+            {
+                "name": "ncShowInterfacesSummarySuccess",
+                "condition": "${ .postchecksNcShowInterfacesSummaryResult.status == \"success\" }",
+                "transition": "invokeInstallCommit"
+            },
+            {
+                "name": "ncShowInterfacesSummaryFailure",
+                "condition": "${ .postchecksNcShowInterfacesSummaryResult.status != \"success\" }",
+                "transition": "handlePrechecksFailure"
+            }
+            ],
+            "defaultCondition": {
+            "transition": "handlePostChecksFailure"
+            }
+        },
+        {
+            "name": "invokeInstallCommit",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "invoke-install-commit",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "invoke-install-commit",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .installCommitResult }"
+                    }
+                }
+            ],
+            "transition": "checkInstallCommitStatus"
+        },
+        {
+            "name": "checkInstallCommitStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "installCommitSuccess",
+                    "condition": "${ .installCommitResult.status == \"success\" }",
+                    "transition": "monitorCommitProgressUntilCompletion"
+                },
+                {
+                    "name": "installCommitFailure",
+                    "condition": "${ .installCommitResult.status != \"success\" }",
+                    "transition": "handleInstallCommitFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handleInstallCommitFailure"
+            }
+        },
+        {
+            "name": "monitorCommitProgressUntilCompletion",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "monitor-commit-progress-until-completion",
+                    "subFlowRef": {
+                        "invoke": "sync",
+                        "version": "1.0.0",
+                        "workflowId": "monitor-commit-progress-until-completion",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "toStateData": "${ .commitProgressResult }",
+                        "fromStateData": "${ {\"deviceName\": .deviceName, \"resourceId\": .resourceId}  }"
+                    }
+                }
+            ],
+            "transition": "checkCommitProgressStatus"
+        },
+        {
+            "name": "checkCommitProgressStatus",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "commitProgressSuccess",
+                    "condition": "${ .commitProgressResult.status == \"success\" }",
+                    "transition": "handleSuccess"
+                },
+                {
+                    "name": "commitProgressFailure",
+                    "condition": "${ .commitProgressResult.status != \"success\" }",
+                    "transition": "handleInstallCommitFailure"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "handleInstallCommitFailure"
+            }
+        },
+        {
+            "end": true,
+            "name": "handleSuccess",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ { \"upgrade-status\": \"success\", \"comparison-interfaces-summary\": (.prechecksNcShowInterfacesSummaryResult.output.\"Cisco-IOS-XR-pfi-im-cmd-oper:interface-summary\".\"interface-type\" as $pre | .postchecksNcShowInterfacesSummaryResult.output.\"Cisco-IOS-XR-pfi-im-cmd-oper:interface-summary\".\"interface-type\" as $post | [$pre, $post] | transpose | map({ \"interface-type-name\": .[0].\"interface-type-name\", \"admin-down-interface-count\": (if .[0].\"interface-counts\".\"admin-down-interface-count\" != .[1].\"interface-counts\".\"admin-down-interface-count\" then \"changed from \\([.[0].\"interface-counts\".\"admin-down-interface-count\"]) to \\([.[1].\"interface-counts\".\"admin-down-interface-count\"])\" else \"remained the same\" end), \"down-interface-count\": (if .[0].\"interface-counts\".\"down-interface-count\" != .[1].\"interface-counts\".\"down-interface-count\" then \"changed from \\([.[0].\"interface-counts\".\"down-interface-count\"]) to \\([.[1].\"interface-counts\".\"down-interface-count\"])\" else \"remained the same\" end), \"up-interface-count\": (if .[0].\"interface-counts\".\"up-interface-count\" != .[1].\"interface-counts\".\"up-interface-count\" then \"changed from \\([.[0].\"interface-counts\".\"up-interface-count\"]) to \\([.[1].\"interface-counts\".\"up-interface-count\"])\" else \"remained the same\" end), \"interface-count\": (if .[0].\"interface-counts\".\"interface-count\" != .[1].\"interface-count\" then \"changed from \\([.[0].\"interface-count\"]) to \\([.[1].\"interface-count\"])\" else \"remained the same\" end) }) ), \"comparison-total-interface-counts\": (.prechecksNcShowInterfacesSummaryResult.output.\"Cisco-IOS-XR-pfi-im-cmd-oper:interface-summary\".\"interface-counts\" as $preCounts | .postchecksNcShowInterfacesSummaryResult.output.\"Cisco-IOS-XR-pfi-im-cmd-oper:interface-summary\".\"interface-counts\" as $postCounts | { \"admin-down-interface-count\": (if $preCounts.\"admin-down-interface-count\" != $postCounts.\"admin-down-interface-count\" then \"changed from \\($preCounts.\"admin-down-interface-count\") to \\($postCounts.\"admin-down-interface-count\")\" else \"remained the same\" end), \"down-interface-count\": (if $preCounts.\"down-interface-count\" != $postCounts.\"down-interface-count\" then \"changed from \\($preCounts.\"down-interface-count\") to \\($postCounts.\"down-interface-count\")\" else \"remained the same\" end), \"up-interface-count\": (if $preCounts.\"up-interface-count\" != $postCounts.\"up-interface-count\" then \"changed from \\($preCounts.\"up-interface-count\") to \\($postCounts.\"up-interface-count\")\" else \"remained the same\" end), \"interface-count\": (if $preCounts.\"interface-count\" != $postCounts.\"interface-count\" then \"changed from \\($preCounts.\"interface-count\") to \\($postCounts.\"interface-count\")\" else \"remained the same\" end) }), \"postchecksNcShowInterfacesSummaryResult\": .postchecksNcShowInterfacesSummaryResult, \"prechecksNcShowInterfacesSummaryResult\": .prechecksNcShowInterfacesSummaryResult } }"
+            }
+        },
+        {
+            "end": true,
+            "name": "handlePrechecksFailure",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ .+={summaryMessage: \"Pre-checks failed\"} }"
+            }
+        },
+        {
+            "end": true,
+            "name": "handlePostChecksFailure",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ .+={summaryMessage: \"Post-checks failed\"} }"
+            }
+        },
+        {
+            "end": true,
+            "name": "handleImageCopyFailure",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ .+={summaryMessage: \"Image Copy failed\"} }"
+            }
+        },
+        {
+            "end": true,
+            "name": "handleInstallReplaceFailure",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ .+={summaryMessage: \"Install Replace failed\"} }"
+            }
+        },
+        {
+            "end": true,
+            "name": "handleInstallCommitFailure",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ .+={summaryMessage: \"Install Commit  failed\"} }"
+            }
+        }
+    ],
+    "version": "1.0.0",
+    "specVersion": "0.8"
+}

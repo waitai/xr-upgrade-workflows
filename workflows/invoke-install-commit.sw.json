@@ -1,0 +1,98 @@
+{
+  "id": "invoke-install-commit",
+  "name": "invoke-install-commit",
+  "version": "1.0.0",
+  "description": "A workflow to invoke the install-commit operation on an IOS-XR device using RESTCONF through NSO.",
+  "start": "invokeInstallCommit",
+  "states": [
+    {
+      "name": "invokeInstallCommit",
+      "type": "operation",
+      "actions": [
+        {
+          "functionRef": {
+            "refName": "nso-restconf-post",
+            "arguments": {
+              "input": {
+                "data": {
+                  "Cisco-IOS-XR-install-act:install-commit": {
+                    "force": false
+                  }
+                },
+                "path": "restconf/operations/tailf-ncs:devices/device=${ .deviceName }/tailf-ncs:rpc/Cisco-IOS-XR-install-act:rpc-install-commit/Cisco-IOS-XR-install-act:install-commit"
+              },
+              "config": {
+                "resourceId": "${ .resourceId }"
+              }
+            }
+          },
+          "actionDataFilter": {
+            "results": "${ if (.status == 200) then { \"status\": \"success\", \"output\": .data } else { \"status\": \"error\", \"error-tag\": .status, \"output\": .data } end }",
+            "toStateData": "${ .installCommitResult }"
+        }
+        }
+      ],
+      "transition": {
+        "nextState": "validate-and-return-result"
+      }
+    },
+    {
+        "name": "validate-and-return-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "http response error",
+            "condition": "${ .installCommitResult.status == \"error\" then true else false end }",
+            "transition": "rpc-execution-error"
+          },
+          {
+            "name": "valid result",
+            "condition": "${ if .installCommitResult.status == \"success\" and  (.installCommitResult.output.\"Cisco-IOS-XR-install-act:output\".\"op-id\" != null) then true else false end }",
+            "transition": "return-success"
+          },
+          {
+            "name": "invalid result",
+            "condition": "${ if .installCommitResult.status == \"success\" and  (.installCommitResult.output.\"Cisco-IOS-XR-install-act:output\".\"op-id\" == null) then true else false end }",
+            "transition": "return-error"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-error"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"success\", \"output\": .installCommitResult.output.\"Cisco-IOS-XR-install-act:output\".\"op-id\"} }"
+        },
+        "end": true
+      },
+      {
+        "name": "return-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${  {\"status\": \"image-copy-error\", \"output\": .installCommitResult.output.\"Cisco-IOS-XR-install-act:output\".\"op-id\"} }"
+        },
+        "end": true
+      },
+      {
+        "name": "rpc-execution-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"rpc-execution-error\"} }"
+        },
+        "end": true
+      }
+  ],
+  "functions": [
+    {
+      "name": "nso-restconf-post",
+      "operation": "cisco.nso.@latest.restconf.Post"
+    }
+  ],
+  "specVersion": "0.9"
+}

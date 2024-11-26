@@ -1,0 +1,154 @@
+{
+    "id": "monitor-install-progress-until-completion",
+    "name": "monitor-install-progress-until-completion",
+    "start": "Pause-for-450sec",
+    "states": [
+        {
+            "name": "Pause-for-450sec",
+            "type": "sleep",
+            "duration": "PT450S",
+            "transition": "Get-xr-install-request"
+        },
+        {
+            "name": "Get-xr-install-request",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "invokeGenericNSORequestAction",
+                    "subFlowRef": {
+                        "workflowId": "GenericNSORequest",
+                        "version": "1.0.0",
+                        "invoke": "sync",
+                        "onParentComplete": "continue"
+                    },
+                    "actionDataFilter": {
+                        "fromStateData": "${{\"deviceName\": .deviceName, \"requestType\": \"GET\", \"resourceId\": .resourceId, \"path\": (\"restconf/data/tailf-ncs:devices/device=\" + .deviceName + \"/live-status/Cisco-IOS-XR-install-augmented-oper:install/request\")}}"
+                    }
+                }
+            ],
+            "transition": {
+                "nextState": "validate-install-request-output"
+            }
+        },
+        {
+            "name": "validate-install-request-output",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "name": "failed without data",
+                    "condition": "${ (.getResult.status==\"success\" ) and (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\" | not) } ",
+                    "transition": "noDataError"
+                },
+                {
+                    "name": "failed to execute",
+                    "condition": "${ (.getResult.status==\"success\" | not) } ",
+                    "transition": "actionFailed"
+                },
+                {
+                    "name": "image being activated",
+                    "condition": "${ if .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\" then (if (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.state == \"in-progress\" and (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"next-activity\" | startswith(\"apply\") | not)) then true else false end) else false end}",
+                    "transition": "wait-for-15sec"
+                },
+                {
+                    "name": "image still being activated",
+                    "condition": "${ if .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\" then (if (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.state == \"in-progress\" and .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"node-request-time-left\" > 2020  and (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"next-activity\" | startswith(\"apply\"))) then true else false end) else false end}",
+                    "transition": "wait-for-15sec"
+                },
+                {
+                    "name": "router about to get rebooted",
+                    "condition": "${ if .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\" then (if (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.state == \"in-progress\" and .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"node-request-time-left\" <= 2020 and (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"next-activity\" | startswith(\"apply\"))) then true else false end) else false end}",
+                    "transition": "wait-for-300sec"
+                },
+                {
+                    "name": "job failed",
+                    "condition": "${ if .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\" then (if (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.state == \"failed\") then true else false end) else false end}",
+                    "transition": "return-failure"
+                },
+                {
+                    "name": "job completed",
+                    "condition": "${ if .getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\" then (if (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.state == \"success\") then true else false end) else false end}",
+                    "transition": "return-success"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "abnormal-exit"
+            }
+        },
+        {
+            "name": "return-success",
+            "type": "operation",
+            "actions": [],
+            "end": true,
+            "stateDataFilter": {
+                "output": "${ .status=\"success\" | del(.getResult) }"
+            }
+        },
+        {
+            "name": "return-failure",
+            "type": "operation",
+            "actions": [],
+            "end": true,
+            "stateDataFilter": {
+                "output": "${ .status=\"error\" | del(.getResult) }"
+            }
+        },
+        {
+            "name": "wait-for-15sec",
+            "type": "sleep",
+            "duration": "PT15S",
+            "transition": "Get-xr-install-request",
+            "stateDataFilter": {
+                "output": "${ . | del(.getResult) }"
+            }
+        },
+        {
+            "name": "wait-for-300sec",
+            "type": "sleep",
+            "duration": "PT300S",
+            "transition": "Get-xr-install-request",
+            "stateDataFilter": {
+                "output": "${ . | del(.getResult) }"
+            }
+        },
+        {
+            "name": "abnormal-exit",
+            "type": "operation",
+            "actions": [],
+            "end": true,
+            "stateDataFilter": {
+                "output": "${  .status=\"error\" | .message= \"Exited abnormally .\" | del(.getResult) }"
+            }
+        },
+        {
+            "name": "noDataError",
+            "type": "operation",
+            "actions": [],
+            "end": true,
+            "stateDataFilter": {
+                "output": "${  .status=\"error\" | .message= \"No output found from action result. \" | del(.getResult)}"
+            }
+        },
+        {
+            "name": "actionFailed",
+            "type": "operation",
+            "actions": [],
+            "end": true,
+            "stateDataFilter": {
+                "output": "${  .status=\"error\" | .message= \"Action failed on nso. \" | del(.getResult) }"
+            }
+        }
+    ],
+    "version": "1.0.0",
+    "functions": [
+        {
+            "name": "nso-restconf-post",
+            "operation": "cisco.nso.@latest.restconf.Post"
+        },
+        {
+            "name": "nso-restconf-get",
+            "operation": "cisco.nso.@latest.restconf.Get"
+        }
+    ],
+    "description": "Workflow to retrieve the request data of an XR device via NSO RESTCONF API",
+    "specVersion": "0.9"
+}

@@ -1,0 +1,103 @@
+{
+    "id": "GenericNSORequest",
+    "name": "GenericNSORequest",
+    "start": "DetermineRequestType",
+    "states": [
+        {
+            "name": "DetermineRequestType",
+            "type": "switch",
+            "dataConditions": [
+                {
+                    "condition": "${ .requestType == \"GET\" }",
+                    "transition": "InvokeNSOGet"
+                },
+                {
+                    "condition": "${ .requestType == \"POST\" }",
+                    "transition": "InvokeNSOPost"
+                }
+            ],
+            "defaultCondition": {
+                "transition": "InvalidRequestType"
+            }
+        },
+        {
+            "name": "InvokeNSOGet",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "InvokeNSOGetAction",
+                    "functionRef": {
+                        "refName": "NSO.RestconfGet",
+                        "arguments": {
+                            "input": {
+                                "path": "${ .path }"
+                            },
+                            "config": {
+                                "resourceId": "${ .resourceId }"
+                            }
+                        }
+                    },
+                    "actionDataFilter": {
+                        "results": "${ if (.status == 200) then { \"status\": \"success\", \"output\": .data } else { \"status\": \"error\", \"error-tag\": .status, \"output\": .data } end }",
+                        "toStateData": "${ .getResult }"
+                    }
+                }
+            ],
+            "stateDataFilter": {
+                "output": "${ . | del(.deviceName) | del(.path) | del(.resourceId) | del(.requestType) }"
+            },
+            "end": true
+        },
+        {
+            "name": "InvokeNSOPost",
+            "type": "operation",
+            "actions": [
+                {
+                    "name": "InvokeNSOPostAction",
+                    "functionRef": {
+                        "refName": "NSO.RestconfPost",
+                        "arguments": {
+                            "input": {
+                                "data": "${ .data }",
+                                "path": "${ .path }"
+                            },
+                            "config": {
+                                "resourceId": "${ .resourceId }"
+                            }
+                        }
+                    },
+                    "actionDataFilter": {
+                        "results": "${ if (.status == 200) then { \"status\": \"success\", \"output\": .data } else { \"status\": \"error\", \"error-tag\": .status, \"output\": .data } end }",
+                        "toStateData": "${ .postResult }"
+                    }
+                }
+            ],
+            "stateDataFilter": {
+                "output": "${ . | del(.deviceName) | del(.path) | del(.resourceId) | del(.data) | del(.requestType) }"
+            },
+            "end": true
+        },
+        {
+            "name": "InvalidRequestType",
+            "type": "operation",
+            "actions": [],
+            "stateDataFilter": {
+                "output": "${ { \"status\": \"error\", \"message\": \"The request type provided is not supported. Please use 'GET' or 'POST'.\" } }"
+            },
+            "end": true
+        }
+    ],
+    "functions": [
+        {
+            "name": "NSO.RestconfGet",
+            "operation": "cisco.nso.@latest.restconf.Get"
+        },
+        {
+            "name": "NSO.RestconfPost",
+            "operation": "cisco.nso.@latest.restconf.Post"
+        }
+    ],
+    "description": "Workflow for handling NSO RESTCONF GET and POST requests",
+    "version": "1.0.0",
+    "specVersion": "0.9"
+}

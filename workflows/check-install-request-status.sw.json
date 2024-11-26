@@ -1,0 +1,82 @@
+{
+  "id": "check-install-request-status",
+  "name": "check-install-request-status",
+  "version": "1.0.0",
+  "start": "invokeGenericNSORequest",
+  "states": [
+    {
+      "name": "invokeGenericNSORequest",
+      "type": "operation",
+      "actions": [
+        {
+          "name": "invokeGenericNSORequestAction",
+          "subFlowRef": {
+            "workflowId": "GenericNSORequest",
+            "version": "1.0.0",
+            "invoke": "sync",
+            "onParentComplete": "continue"
+          },
+          "actionDataFilter": {
+            "fromStateData": "${{\"deviceName\": .deviceName, \"requestType\": \"GET\", \"resourceId\": .resourceId, \"path\": (\"restconf/data/tailf-ncs:devices/device=\" + .deviceName + \"/live-status/Cisco-IOS-XR-install-augmented-oper:install/request\")}}"
+          }
+        }
+      ],
+      "transition": {
+        "nextState": "validateInstallRequestStatus"
+      }
+    },
+    {
+      "name": "validateInstallRequestStatus",
+      "type": "switch",
+      "dataConditions": [
+        {
+          "name": "http response error",
+          "condition": "${ .getResult.status == \"error\" }",
+          "transition": "rpc-execution-error"
+        },
+        {
+          "name": "valid result",
+          "condition": "${ if .getResult.status == \"success\" and (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"current-activity\" == \"no-op-in-progress\") then true else false end }",
+          "transition": "return-success"
+        },
+        {
+          "name": "invalid result",
+          "condition": "${ if .getResult.status == \"success\" and (.getResult.output.\"Cisco-IOS-XR-install-augmented-oper:request\".verbose.\"current-activity\" != \"no-op-in-progress\") then true else false end }",
+          "transition": "return-error"
+        }
+      ],
+      "defaultCondition": {
+        "transition": "return-error"
+      }
+    },
+    {
+      "name": "return-success",
+      "type": "operation",
+      "actions": [],
+      "stateDataFilter": {
+        "output": "${ {\"status\": \"success\"} }"
+      },
+      "end": true
+    },
+    {
+      "name": "return-error",
+      "type": "operation",
+      "actions": [],
+      "stateDataFilter": {
+        "output": "${  {\"status\": \"install-check-error\"} }"
+      },
+      "end": true
+    },
+    {
+      "name": "rpc-execution-error",
+      "type": "operation",
+      "actions": [],
+      "stateDataFilter": {
+        "output": "${ {\"status\": \"rpc-execution-error\"} }"
+      },
+      "end": true
+    }
+  ],
+  "description": "Workflow to check the current install request status on an XR device via NSO RESTCONF API",
+  "specVersion": "0.9"
+}

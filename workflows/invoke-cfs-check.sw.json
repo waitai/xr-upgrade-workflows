@@ -1,0 +1,82 @@
+{
+  "id": "invoke-cfs-check",
+  "name": "invoke-cfs-check",
+  "start": "invokeGenericNSORequest",
+  "states": [
+      {
+          "name": "invokeGenericNSORequest",
+          "type": "operation",
+          "actions": [
+              {
+                  "name": "invokeGenericNSORequestAction",
+                  "subFlowRef": {
+                      "invoke": "sync",
+                      "version": "1.0.0",
+                      "workflowId": "GenericNSORequest",
+                      "onParentComplete": "continue"
+                  },
+                  "actionDataFilter": {
+                      "fromStateData": "${{\"deviceName\": .deviceName, \"requestType\": \"POST\", \"resourceId\": .resourceId, \"path\":(\"restconf/operations/tailf-ncs:devices/device=\"+.deviceName+\"/tailf-ncs:rpc/Cisco-IOS-XR-cfgmgr-cfs-check-act:rpc-cfs-check/Cisco-IOS-XR-cfgmgr-cfs-check-act:cfs-check\"), \"data\": {\"Cisco-IOS-XR-cfgmgr-cfs-check-act:cfs-check\": {\"check\": {}}} }}"
+                  }
+              }
+          ],
+      "transition": {
+        "nextState": "validate-and-return-result"
+      }
+    },
+    {
+        "name": "validate-and-return-result",
+        "type": "switch",
+        "dataConditions": [
+          {
+            "name": "http response error",
+            "condition": "${ .postResult.status == \"error\" then true else false end }",
+            "transition": "rpc-execution-error"
+          },
+          {
+            "name": "valid result",
+            "condition": "${ if .postResult.status == \"success\" and  (.postResult.output.\"Cisco-IOS-XR-cfgmgr-cfs-check-act:output\".\"cfs-check-response\".response == \"SUCCESS\") then true else false end }",
+            "transition": "return-success"
+          },
+          {
+            "name": "invalid result",
+            "condition": "${ if .postResult.status == \"success\" and  (.postResult.output.\"Cisco-IOS-XR-cfgmgr-cfs-check-act:output\".\"cfs-check-response\".response != \"SUCCESS\") then true else false end }",
+            "transition": "return-error"
+          }
+        ],
+        "defaultCondition": {
+          "transition": "return-error"
+        }
+      },
+      {
+        "name": "return-success",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"success\"} }"
+        },
+        "end": true
+      },
+      {
+        "name": "return-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${  {\"status\": \"cfs-check-error\"} }"
+        },
+        "end": true
+      },
+      {
+        "name": "rpc-execution-error",
+        "type": "operation",
+        "actions": [],
+        "stateDataFilter": {
+          "output": "${ {\"status\": \"rpc-execution-error\"} }"
+        },
+        "end": true
+      }
+  ],
+  "version": "1.0.0",
+  "description": "Workflow to perform the cfs-check operation on an XR device via NSO RESTCONF API",
+  "specVersion": "0.9"
+}
