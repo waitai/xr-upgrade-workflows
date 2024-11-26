@@ -1,5 +1,5 @@
 # xr-upgrade-workflows
-A set of CWM workflows for upgrading a single OS image of IOS-XR (LNT Flavor) devices.  The CWM workflows interact with NSO via the IOS-XR NETCONF NED to perform the pre-check, image upgrade and post-check.  The workflows are defined in [CNCF's Serverless Workflow DSL Specification](https://github.com/serverlessworkflow/specification/blob/0.9.x/specification.md).
+A set of CWM workflows for upgrading a single OS image of IOS-XR (LNT Flavor) devices.  The CWM workflows interact with NSO via the IOS-XR NETCONF NED to perform the pre-check, image upgrade and post-check.  The workflows are defined using [CNCF's Serverless Workflow DSL Specification](https://github.com/serverlessworkflow/specification/blob/0.9.x/specification.md).
 
 More documentation to come.
 
