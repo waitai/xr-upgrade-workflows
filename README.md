@@ -11,7 +11,7 @@ A set of CWM workflows for upgrading a single OS image of IOS-XR (LNT Flavor) de
 
 ## Introduction
 
-Cisco's Crosswork Workflow Manager (CWM) enables customers to build their own automation workflows, with capabilities to integrate to existing Operations Support Systems (OSS) and Business Support Systems (BSS) within their environment. These integrations are achieved through the use of adapters.
+Cisco's [Crosswork Workflow Manager](https://www.cisco.com/c/en/us/products/cloud-systems-management/crosswork-workflow-manager/index.html) (CWM) enables customers to build their own automation workflows, with capabilities to integrate to existing Operations Support Systems (OSS) and Business Support Systems (BSS) within their environment. These integrations are achieved through the use of adapters.
 
 Together with Cisco's Network Service Orchestrator (NSO), CWM allows ease of automating change management for your network.  It also enables the automation of Router OS upgrade for your network devices.
 
