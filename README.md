@@ -1,3 +1,5 @@
+[![published](https://static.production.devnetcloud.com/codeexchange/assets/images/devnet-published.svg)](https://developer.cisco.com/codeexchange/github/repo/waitai/xr-upgrade-workflows)
+
 # xr-upgrade-workflows
 A set of CWM workflows for upgrading a single OS image of the IOS-XR (LNT Flavor) devices.  The CWM workflows interact with NSO via its RESTCONF API and to the device via NSO's IOS-XR NETCONF NED to perform the pre-check, image upgrade and post-check.  The workflows are defined using [CNCF's Serverless Workflow DSL Specification](https://github.com/serverlessworkflow/specification/blob/0.9.x/specification.md) in JSON.
 
